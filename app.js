@@ -7,6 +7,7 @@ const THEME_KEY = 'workshop-theme';
 // 取得畫面上會用到的元素
 const form = document.getElementById('todo-form');
 const input = document.getElementById('todo-input');
+const feedback = document.getElementById('todo-feedback');
 const list = document.getElementById('todo-list');
 const emptyState = document.getElementById('empty-state');
 const remainingCount = document.getElementById('remaining-count');
@@ -145,15 +146,49 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** 顯示新增/錯誤提示 */
+function showFeedback(message, type) {
+  if (!message) {
+    feedback.hidden = true;
+    feedback.textContent = '';
+    feedback.classList.remove('is-error', 'is-success');
+    return;
+  }
+
+  feedback.textContent = message;
+  feedback.hidden = false;
+  feedback.classList.toggle('is-error', type === 'error');
+  feedback.classList.toggle('is-success', type === 'success');
+}
+
 /** 新增一筆待辦 */
 function addTodo(text) {
+  const normalizedText = text.trim();
+
+  if (!normalizedText) {
+    showFeedback('待辦內容不能為空白。', 'error');
+    return false;
+  }
+
+  const duplicateExists = todos.some(
+    (todo) => todo.text.trim().toLowerCase() === normalizedText.toLowerCase()
+  );
+
+  if (duplicateExists) {
+    showFeedback('這個待辦已經存在了。', 'error');
+    return false;
+  }
+
   todos.push({
     id: createId(),
-    text,
+    text: normalizedText,
     completed: false,
   });
+
   saveTodos();
   render();
+  showFeedback('待辦已新增。', 'success');
+  return true;
 }
 
 /** 切換某一筆待辦的完成狀態 */
@@ -191,12 +226,22 @@ function setFilter(filter) {
 form.addEventListener('submit', (event) => {
   event.preventDefault();
 
-  const text = input.value.trim();
-  if (!text) return; // 空白內容不新增
+  const text = input.value;
+  const result = addTodo(text);
 
-  addTodo(text);
+  if (!result) {
+    input.focus();
+    return;
+  }
+
   input.value = '';
   input.focus();
+});
+
+input.addEventListener('input', () => {
+  if (feedback.textContent) {
+    showFeedback('', '');
+  }
 });
 
 // 用事件委派處理清單內的點擊(勾選完成 / 刪除)
