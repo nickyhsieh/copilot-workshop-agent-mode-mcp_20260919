@@ -3,6 +3,8 @@
 
 const STORAGE_KEY = 'workshop-todos';
 const THEME_KEY = 'workshop-theme';
+const FILTER_KEY = 'workshop-filter';
+const VALID_FILTERS = ['all', 'active', 'completed'];
 
 // 取得畫面上會用到的元素
 const form = document.getElementById('todo-form');
@@ -21,7 +23,7 @@ const themeLabel = document.getElementById('theme-label');
 let todos = loadTodos();
 
 // 目前的篩選條件:'all' | 'active' | 'completed'
-let currentFilter = 'all';
+let currentFilter = loadFilter();
 
 // ---------- 資料存取 ----------
 
@@ -40,6 +42,31 @@ function loadTodos() {
 /** 把目前的待辦清單寫回 localStorage */
 function saveTodos() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+}
+
+/** 從 localStorage 讀回篩選條件,如果值不合法就回歸全部 */
+function loadFilter() {
+  try {
+    const savedFilter = localStorage.getItem(FILTER_KEY);
+    return VALID_FILTERS.includes(savedFilter) ? savedFilter : 'all';
+  } catch (error) {
+    console.warn('讀取篩選條件失敗,將以全部顯示。', error);
+    return 'all';
+  }
+}
+
+/** 把目前的篩選條件寫回 localStorage */
+function saveFilter() {
+  localStorage.setItem(FILTER_KEY, currentFilter);
+}
+
+/** 依照目前的篩選條件同步篩選按鈕 UI */
+function syncFilterButtons() {
+  filterButtons.forEach((button) => {
+    const isActive = button.dataset.filter === currentFilter;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
+  });
 }
 
 // ---------- 深色模式 ----------
@@ -94,7 +121,10 @@ function getEmptyMessage() {
   if (currentFilter === 'active') {
     return '太棒了,沒有未完成的事項!';
   }
-  return '還沒有已完成的事項。';
+  if (currentFilter === 'completed') {
+    return '目前沒有已完成的事項。項目還在清單裡,只是被篩選條件隱藏了。';
+  }
+  return '目前沒有符合條件的項目。';
 }
 
 /** 依照目前的 todos 陣列與篩選條件,重新畫出整份清單 */
@@ -209,14 +239,13 @@ function deleteTodo(id) {
 
 /** 切換篩選條件 */
 function setFilter(filter) {
+  if (!VALID_FILTERS.includes(filter)) {
+    filter = 'all';
+  }
+
   currentFilter = filter;
-
-  filterButtons.forEach((button) => {
-    const isActive = button.dataset.filter === filter;
-    button.classList.toggle('is-active', isActive);
-    button.setAttribute('aria-pressed', String(isActive));
-  });
-
+  saveFilter();
+  syncFilterButtons();
   render();
 }
 
@@ -272,4 +301,5 @@ themeToggle.addEventListener('click', () => {
 
 // 頁面載入時先套用主題並畫一次清單
 initTheme();
+syncFilterButtons();
 render();
